@@ -1,40 +1,101 @@
 ;;; -*- mode: lisp-interaction; syntax: elisp -*-
-;; (global-linum-mode t)
 
-(message "start load init.el")
+(message "[init] init.el を読み込みます")
 
-(and nil
-     (when (eq system-type 'darwin)
-       (set-face-attribute 'default nil :family "Menlo" :height 140))
-     (keyboard-translate ?\C-h ?\C-?)
-     )
+;;; 起動と基本環境
 
+(setq inhibit-startup-screen t
+      select-enable-clipboard t
+      user-full-name "Your Name"
+      exec-path (parse-colon-path (getenv "PATH"))
+      gc-cons-threshold 500000)
 
-(setq select-enable-clipboard t)
-(when (fboundp 'tool-bar-mode) (tool-bar-mode -1))
+(set-language-environment 'Japanese)
+(set-buffer-file-coding-system 'utf-8-unix)
+(prefer-coding-system 'utf-8-unix)
 
-(let ((backup-dir "~/.emacs.d/backups"))
-  (setq backup-directory-alist `(("." . ,backup-dir)))
-  (setq auto-save-file-name-transforms `((".*" ,(concat backup-dir "/") t)))
-  (setq lock-file-name-transforms `((".*" ,(concat backup-dir "/") t)))
-  (let ((b-dir (expand-file-name backup-dir)))
-    (unless (file-exists-p b-dir)
-      (make-directory b-dir t))))
+(when (functionp 'inactivate-input-method)
+  (inactivate-input-method))
 
-;; --- 標準機能によるセッション・履歴保存設定 ---
+(message "[init] 起動と日本語設定を読み込みました")
+
+;;; ファイル、セッション、履歴
+
+(let* ((backup-dir "~/.emacs.d/backups")
+       (expanded-backup-dir (expand-file-name backup-dir)))
+  (setq backup-directory-alist `(("." . ,backup-dir))
+        auto-save-file-name-transforms `((".*" ,(concat backup-dir "/") t))
+        lock-file-name-transforms `((".*" ,(concat backup-dir "/") t)))
+  (unless (file-exists-p expanded-backup-dir)
+    (make-directory expanded-backup-dir t)))
+
+(setq backup-inhibited nil
+      auto-save-default nil
+      desktop-save t
+      desktop-load-locked-desktop t
+      bookmark-default-file "~/.emacs.d/.emacs.bmk"
+      bookmark-save-flag 1)
+
 (savehist-mode 1)
 (desktop-save-mode 1)
 (save-place-mode 1)
 
-;; desktopの確認をスキップする快適設定
-(setq desktop-save t)
-(setq desktop-load-locked-desktop t);; デスクトップ（セッション）保存を有効化
+(message "[init] ファイル履歴とセッション設定を読み込みました")
 
-(global-set-key "\C-h" 'backward-delete-char)
-;; (global-set-key "\C-z" 'undo)
+;;; 基本 UI
+
+(when (fboundp 'tool-bar-mode)
+  (tool-bar-mode -1))
+
+(when (version<= "26.0.50" emacs-version)
+  (global-display-line-numbers-mode 1))
+
+(line-number-mode 0)
+(column-number-mode t)
+(global-hl-line-mode 1)
+
+;; 縦分割したウィンドウでも長い行を折り返して表示する。
+(setq truncate-lines nil
+      truncate-partial-width-windows nil
+      uniquify-buffer-name-style 'post-forward-angle-brackets
+      scalable-fonts-allowed t
+      cursor-in-non-selected-windows nil
+      isearch-lazy-highlight-initial-delay 0)
+
+(auto-image-file-mode 1)
+
+;; 日常的に見たい空白だけを whitespace-mode で強調する。
+(global-whitespace-mode 1)
+(setq whitespace-space-regexp "\x3000+")
+(dolist (style '(newline-mark space-mark lines space-before-tab space-after-tab empty indentation))
+  (setq whitespace-style (delq style whitespace-style)))
+
+(message "[init] UI 設定を読み込みました")
+
+;;; 編集の既定値
+
+(setq-default fill-column 100
+              indent-tabs-mode nil
+              tab-width 2
+              scroll-step 1
+              fume-display-in-modeline-p t)
+
+(setq indent-tabs-mode nil
+      default-tab-width 2
+      mouse-yank-at-point t
+      completion-ignore-case t
+      next-line-add-newlines nil
+      blink-matching-paren-distance 20000)
+
+(electric-indent-mode -1)
+(abbrev-mode 1)
 
 (put 'narrow-to-region 'disabled nil)
 (put 'set-goal-column 'disabled nil)
+
+(message "[init] 編集の既定値を読み込みました")
+
+;;; scratch バッファの表示サンプル
 
 (setq initial-scratch-message "\
 ;+-------------------------------+
@@ -63,72 +124,10 @@
 ; ʠ ʡ ʢ ʣ ʤ ʥ ʦ ʧ ʨ ʩ ʪ ʫ ʬ ʭ ʮ ʯ
 ")
 
-(setq user-full-name "Your Name")
-(setq exec-path (parse-colon-path (getenv "PATH")))
-(setq-default fill-column 100)
+;;; custom-set-variables
 
-(and (version<= "26.0.50" emacs-version )
-     (display-line-numbers-mode nil)
-     (global-display-line-numbers-mode)
-     )
-(line-number-mode 0)
-(column-number-mode t)
-(setq-default indent-tabs-mode nil)
-(setq indent-tabs-mode nil)
-(setq mouse-yank-at-point t)
-(setq uniquify-buffer-name-style 'post-forward-angle-brackets)
-
-(setq-default fume-display-in-modeline-p t)
-
-(setq completion-ignore-case t)
-
-;; 画面縦割りでトランケートさせない
-(setq truncate-lines nil)
-(setq truncate-partial-width-windows nil)
-
-(message "step 1")
-
-(setq inhibit-startup-screen t)
-(set-language-environment "Japanese")
-(setq gc-cons-threshold 500000)
-
-(message "step 2")
-
-;;
-;; tab bar
-;;
-(tab-bar-mode +1)
-(defvar my:tb-z-prefix (kbd "C-z"))
-(setq my:tb-z-map (make-keymap))
-
-(define-key global-map my:tb-z-prefix my:tb-z-map)
-(define-key my:tb-z-map (kbd "C-c") 'tab-new)
-(define-key my:tb-z-map (kbd "C-k") 'tab-close)
-(define-key my:tb-z-map (kbd "C-n") 'tab-next)
-(define-key my:tb-z-map (kbd "C-p") 'tab-previous)
-(define-key tab-prefix-map (kbd "C-z") 'tab-prefix-map)
-(define-key global-map [C-tab]     'tab-next)
-(define-key global-map [C-S-tab]   'tab-previous)
-
-(with-eval-after-load 'tab-bar
-  ;; 現在のタブ（アクティブ）の見た目
-  (set-face-attribute 'tab-bar-tab nil
-                      :background "skyblue" ; 背景色（お好みの色に）
-                      :foreground "#000000" ; 文字色
-                      :weight 'bold         ; 太字
-                      :underline t)         ; 下線
-
-  ;; それ以外のタブ（非アクティブ）の見た目（色のメリハリをつける）
-  (set-face-attribute 'tab-bar-tab-inactive nil
-                      :background "darkgreen" ; 落ち着いた背景色
-                      :foreground "#a7adba" ; 控えめな文字色
-                      :weight 'normal
-                      :underline nil))
-
-
-(message "step 3")
 (custom-set-variables
- '(show-paren-style (quote parenthesis))
+ '(show-paren-style 'parenthesis)
  '(show-paren-delay 0)
  '(show-paren-mode t nil (paren))
  '(show-paren-ring-bell-on-mismatch nil)
@@ -143,42 +142,114 @@
      (encoding . utf-8-unix)
      (encoding . UTF-8)
      (syntax . elisp)))
- '(session-use-package t nil (session))
- )
+ '(session-use-package t nil (session)))
 
-(setq bookmark-default-file "~/.emacs.d/.emacs.bmk")
-(if (or (featurep 'meadow) window-system)
-    (progn (setq find-command "fd")
-           ;;           (setq grep-command "lgrep -n -As ")
-           ;;           (setq igrep-program "lgrep -As")
-           (setq igrep-expression-option nil)
-           ))
+;;; キーバインドと移動
 
-(setq-default tab-width 2 indent-tabs-mode nil)
+(global-set-key "\C-h" 'backward-delete-char)
+(global-set-key (kbd "C-=") 'ibuffer)
+(define-key ctl-x-map "\C-a" 'find-file-at-point)
 
-(message "step 4")
-(setq next-line-add-newlines nil)
-(setq-default tab-width '2)
-(setq default-tab-width  2)
-(setq bookmark-save-flag 1)
-(setq-default scroll-step 1)
-(setq blink-matching-paren-distance 20000)
+;; prefix 引数なしでは既存バッファを優先して切り替える。
 (defadvice switch-to-buffer (before existing-buffer activate compile)
   (interactive
    (list (read-buffer "Switch to buffer: "
                       (other-buffer)
                       (null current-prefix-arg)))))
+
 (set-buffer-modified-p (buffer-modified-p))
 
-(add-hook 'outline-mode-hook 'highlight-changes-mode)
-(and (or window-system (> emacs-major-version '21))
-     (require 'dabbrev-highlight nil t))
+;;; タブバー
 
-(message "step 5")
+(tab-bar-mode 1)
+
+(defvar my:tb-z-prefix (kbd "C-z"))
+(defvar my:tb-z-map (make-keymap))
+
+(define-key global-map my:tb-z-prefix my:tb-z-map)
+(define-key my:tb-z-map (kbd "C-c") 'tab-new)
+(define-key my:tb-z-map (kbd "C-k") 'tab-close)
+(define-key my:tb-z-map (kbd "C-n") 'tab-next)
+(define-key my:tb-z-map (kbd "C-p") 'tab-previous)
+(define-key tab-prefix-map (kbd "C-z") 'tab-prefix-map)
+(define-key global-map [C-tab] 'tab-next)
+(define-key global-map [C-S-tab] 'tab-previous)
+
+(with-eval-after-load 'tab-bar
+  ;; タブの動作は変えず、アクティブなタブだけ視認性を上げる。
+  (set-face-attribute 'tab-bar-tab nil
+                      :background "skyblue"
+                      :foreground "#000000"
+                      :weight 'bold
+                      :underline t)
+  (set-face-attribute 'tab-bar-tab-inactive nil
+                      :background "darkgreen"
+                      :foreground "#a7adba"
+                      :weight 'normal
+                      :underline nil))
+
+(message "[init] キーバインドとタブバー設定を読み込みました")
+
+;;; ibuffer
+
+(setq ibuffer-saved-filter-groups
+      '(("default"
+         ("Dired" (mode . dired-mode))
+         ("Org" (mode . org-mode))
+         ("Source Code" (or (mode . emacs-lisp-mode)
+                            (mode . c-mode)
+                            (mode . c++-mode)
+                            (mode . python-mode)
+                            (mode . web-mode)))
+         ("Magit / Git" (name . "^\\*magit"))
+         ("Emacs" (name . "^\\*.*\\*$"))))
+      ibuffer-show-empty-filter-groups nil)
+
+(add-hook 'ibuffer-mode-hook
+          (lambda ()
+            (ibuffer-switch-to-saved-filter-groups "default")))
+
+;;; シェル、端末、VC
+
+(setq auto-autoloads-psvn nil
+      vc-handled-backends '(git)
+      shell-file-name "zsh"
+      shell-command-switch "-c"
+      explicit-bash-args '("--login" "-i")
+      eol-mnemonic-dos ":CRLF"
+      eol-mnemonic-mac ":CR"
+      eol-mnemonic-unix ":LF")
+
+(autoload 'ansi-color-for-comint-mode-on "ansi-color")
+(add-hook 'shell-mode-hook 'ansi-color-for-comint-mode-on)
+
+(defvar ansi-term-after-hook nil)
+(add-hook 'ansi-term-after-hook
+          (lambda ()
+            (define-key term-raw-map "\C-t" 'shell-pop)))
+
+(defadvice ansi-term (after ansi-term-after-advice (arg))
+  "Run `ansi-term-after-hook' after starting ansi-term."
+  (run-hooks 'ansi-term-after-hook))
+(ad-activate 'ansi-term)
+
+(when (or (featurep 'meadow) window-system)
+  (setq find-command "fd"
+        igrep-expression-option nil))
+
+(message "[init] ibuffer、シェル、VC 設定を読み込みました")
+
+;;; 補完と強調表示
+
+(add-hook 'outline-mode-hook 'highlight-changes-mode)
+
+(when (or window-system (> emacs-major-version 21))
+  (require 'dabbrev-highlight nil t))
+
 (defvar dabbrev-expand-ad-overlay nil)
 (defvar dabbrev-expand-ad-face 'highlight)
 
-
+;; dabbrev の展開元が見えていれば強調し、見えていなければ一行で表示する。
 (defadvice dabbrev-expand (after dabbrev-expand-ad activate)
   (let* ((start dabbrev--last-expansion-location)
          (len (length dabbrev--last-expansion))
@@ -202,13 +273,11 @@
                (pos-visible-in-window-p start)
                (pos-visible-in-window-p end))
           (progn
-            ;; overlay
             (if dabbrev-expand-ad-overlay
                 (move-overlay dabbrev-expand-ad-overlay start end)
               (setq dabbrev-expand-ad-overlay (make-overlay start end)))
             (overlay-put dabbrev-expand-ad-overlay 'evaporate t)
             (overlay-put dabbrev-expand-ad-overlay 'face dabbrev-expand-ad-face))
-        ;; 一行表示
         (save-excursion
           (save-restriction
             (widen)
@@ -231,140 +300,54 @@
 
 (defun dabbrev-expand-ad-done ()
   (remove-hook 'pre-command-hook 'dabbrev-expand-ad-done)
-  (and dabbrev-expand-ad-overlay
-       (delete-overlay dabbrev-expand-ad-overlay)))
-(abbrev-mode t)
-(if (or (featurep 'meadow) (featurep 'meadow-ntemacs) window-system)
-    (global-hl-line-mode)
-  )
-(define-key ctl-x-map "\C-a" 'find-file-at-point)
+  (when dabbrev-expand-ad-overlay
+    (delete-overlay dabbrev-expand-ad-overlay)))
 
-(message "step 6")
-(setq auto-autoloads-psvn nil)
-(setq vc-handled-backends '(git))
-(setq shell-file-name "zsh")
-(setq shell-command-switch "-c")
-(setq explicit-bash-args '("--login" "-i"))
-(autoload 'ansi-color-for-comint-mode-on "ansi-color")
-(add-hook 'shell-mode-hook 'ansi-color-for-comint-mode-on)
-(setq backup-inhibited nil)
-(setq auto-save-default nil)
-(setq eol-mnemonic-dos ":CRLF")
-(setq eol-mnemonic-mac ":CR")
-(setq eol-mnemonic-unix ":LF")
-(defvar ansi-term-after-hook nil)
-(add-hook 'ansi-term-after-hook
-          (function
-           (lambda ()
-             (define-key term-raw-map "\C-t" 'shell-pop))))
-(defadvice ansi-term (after ansi-term-after-advice (arg))
-  "run hook as after advice"
-  (run-hooks 'ansi-term-after-hook))
-(ad-activate 'ansi-term)
-(if (functionp 'inactivate-input-method)
-    (inactivate-input-method))
 (defadvice font-lock-mode (before my-font-lock-mode ())
   (font-lock-add-keywords
    major-mode
    '(("\t" 0 my-face-b-2 append)
      ("　" 0 my-face-b-1 append)
-     ("[ \t]+$" 0 my-face-u-1 append)
-     )))
+     ("[ \t]+$" 0 my-face-u-1 append))))
 (ad-enable-advice 'font-lock-mode 'before 'my-font-lock-mode)
 (ad-activate 'font-lock-mode)
-(if (>= emacs-major-version 21)
-    (progn
-      (setq cursor-in-non-selected-windows nil)
-      (auto-image-file-mode)
-      (setq isearch-lazy-highlight-initial-delay 0)
-      ))
-(if (functionp 'inactivate-input-method)
-    (inactivate-input-method))
-(setq scalable-fonts-allowed t)
 
-;; git clone https://github.com/powerline/fonts
-;; cd fonts; ./install.sh; fc-cache
-;; https://myrica.estable.jp/myricamhistry/
-(and (string= system-type "darwin")
-     (when window-system
-       (set-face-attribute 'default nil :family "MyricaM M" :height (* 18 10))
-       (setq frame-inherited-parameters '(font tool-bar-lines)))
-     )
+(message "[init] 補完と強調表示の設定を読み込みました")
 
-(electric-indent-mode) ;; off
+;;; macOS
 
-(global-whitespace-mode 1)
+(when (eq system-type 'darwin)
+  (when window-system
+    ;; git clone https://github.com/powerline/fonts
+    ;; cd fonts; ./install.sh; fc-cache
+    ;; https://myrica.estable.jp/myricamhistry/
+    (set-face-attribute 'default nil :family "MyricaM M" :height (* 18 10))
+    (setq frame-inherited-parameters '(font tool-bar-lines)))
 
-(message "step 7")
-;; スペースの定義は全角スペースとする。
-(setq whitespace-space-regexp "\x3000+")
-(dolist (d '(newline-mark space-mark lines space-before-tab  space-after-tab empty indentation ))
-  (setq whitespace-style (delq d whitespace-style)))
+  (if (version< "27.0" emacs-version)
+      (set-language-info "Japanese" 'input-method "MacOSX")
+    (set-language-info "Japanese" 'input-method "macOS")
+    (setq default-inline-patch "macOS")
+    (custom-set-variables
+     '(mac-default-input-source "com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese")))
 
-(message "step 8")
+  (setq browse-url-generic-program "open"
+        mac-emulate-three-button-mouse t
+        mac-option-key-is-meta t
+        mac-command-key-is-meta t
+        mac-command-modifier 'meta
+        mac-option-modifier 'meta)
 
-(set-language-environment 'Japanese)
-(set-buffer-file-coding-system 'utf-8-unix)
-(prefer-coding-system 'utf-8-unix)
+  (defun mac-selected-keyboard-input-source-change-hook-func ()
+    (set-cursor-color (if (string-match "\\.ABC$" (mac-input-source))
+                          "firebrick"
+                        "pink")))
 
-(message "step 9")
+  (add-hook 'mac-selected-keyboard-input-source-change-hook
+            'mac-selected-keyboard-input-source-change-hook-func)
 
-;; ibuffer でバッファを自動的にグループ分けする
-(setq ibuffer-saved-filter-groups
-      '(("default"
-         ("Dired" (mode . dired-mode))
-         ("Org" (mode . org-mode))
-         ("Source Code" (or (mode . emacs-lisp-mode)
-                            (mode . c-mode)
-                            (mode . c++-mode)
-                            (mode . python-mode)
-                            (mode . web-mode))) ; 使う言語に合わせて追加
-         ("Magit / Git" (name . "^\\*magit"))
-         ("Emacs" (name . "^\\*.*\\*$")))))
+  ;; railwaycat 版 emacs-mac 用。
+  (when (functionp 'mac-auto-ascii-mode)
+    (mac-auto-ascii-mode 1)))
 
-;; ibuffer 起動時に上記のグループ化を有効にする
-(add-hook 'ibuffer-mode-hook
-          (lambda ()
-            (ibuffer-switch-to-saved-filter-groups "default")))
-
-;; 空のグループは表示しない
-(setq ibuffer-show-empty-filter-groups nil)
-
-(global-set-key (kbd "C-=") 'ibuffer)
-
-
-;;
-;; for macos
-;;
-(and t
-     (if (version< "27.0" emacs-version)
-         (set-language-info "Japanese" 'input-method "MacOSX")
-       (set-language-info "Japanese" 'input-method "macOS")
-       (setq default-inline-patch "macOS")
-       ;;    (when (and (memq window-system '(ns nil))
-       ;;             (fboundp 'mac-get-current-input-source))
-       (custom-set-variables
-        '(mac-default-input-source "com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese"))
-       ;; (mac-input-method-mode 1)
-       ;;)
-       ))
-
-(setq browse-url-generic-program "open")
-(setq mac-emulate-three-button-mouse t)
-(setq mac-option-key-is-meta t)
-(setq mac-command-key-is-meta t)
-(setq mac-command-modifier 'meta)
-(setq mac-option-modifier 'meta)
-(defun mac-selected-keyboard-input-source-change-hook-func ()
-  ;; 入力モードが英語の時はカーソルの色をfirebrickに、日本語の時はpinkにする
-  (set-cursor-color (if (string-match "\\.ABC$" (mac-input-source))
-                        "firebrick" "pink")))
-(add-hook 'mac-selected-keyboard-input-source-change-hook
-          'mac-selected-keyboard-input-source-change-hook-func)
-
-;; for emacs-mac by railwaycat
-(if (functionp 'mac-auto-ascii-mode)
-    (mac-auto-ascii-mode 1))
-
-(message "end   load init.el")
-
+(message "[init] init.el の読み込みが完了しました")
