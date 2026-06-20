@@ -303,14 +303,23 @@
   (when dabbrev-expand-ad-overlay
     (delete-overlay dabbrev-expand-ad-overlay)))
 
-(defadvice font-lock-mode (before my-font-lock-mode ())
+(defface my-face-b-1 '((t (:background "gray98"))) nil)
+(defface my-face-b-2 '((t (:background "beige"))) nil)
+(defface my-face-w-1 '((t (:background "gray93"))) nil)
+(defface my-face-u-1 '((t (:foreground "chocolate" :underline t))) nil)
+
+(defun my-insert-whitespace-keywords ()
   (font-lock-add-keywords
-   major-mode
-   '(("\t" 0 my-face-b-2 append)
-     ("　" 0 my-face-b-1 append)
-     ("[ \t]+$" 0 my-face-u-1 append))))
-(ad-enable-advice 'font-lock-mode 'before 'my-font-lock-mode)
-(ad-activate 'font-lock-mode)
+   nil ; 第一引数を nil にすると「現在のバッファ（モード）」に適用されます
+   '(("\t" 0 'my-face-b-2 append)
+     (" " 0 'my-face-b-1 append)
+     ("[　 \t]+$" 0 'my-face-u-1 append)
+     ("　" 0 'my-face-w-1 append)
+     )
+   ))
+
+;; font-lock-mode がONになったときに、上記の関数を実行する
+(add-hook 'font-lock-mode-hook 'my-insert-whitespace-keywords)
 
 (message "[init] 補完と強調表示の設定を読み込みました")
 
